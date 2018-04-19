@@ -11,8 +11,14 @@ class nodo {
 public:
     nodo();
     nodo(int etapa, int n, int *soluciones, bool *u, int coste, int coste_est);
-	int getElem() {return coste_estimado; }
-    
+	int getCoste_estimado() {return coste_estimado; }
+	int getK(){return k;}
+	int *getSoluciones(){return sol;}
+	int getSolucion(int i) {return sol[i]; }
+	bool *getUsados(){ return usado;}
+	int getCoste(){return coste;}
+	void modifySolution(int pos, int x) {sol[pos] =x; }
+	void modifyUsado(int pos, bool x){usado[pos] = x;}
 };
 
 nodo::nodo(int etapa, int n, int *soluciones, bool *u, int cost, int coste_est){
@@ -135,12 +141,15 @@ int main(){
 }
 
 //mat - matriz de adyacencia que representa el grafo
-double viajante_rp(int **mat, int N, int *sol_mejor){
+double viajante_rp(int **mat, int N, int *sol_mejor, double coste_mejor){
     nodo *X, *Y;
     Monticulo_Williams_Minimos *cp = new Monticulo_Williams_Minimos(N);
     int *costes_minimos = new int[N];
+	
+	//guardamos en costes_minimos los costes de las aristas de menor a mayor
     costes_minimos = calculo_minimos(mat, N);
-    //generamos la raiz
+    
+	//generamos la raiz
     //necesitamos preparar un array solucion y usado
     int *sol = new int[N];
     bool *usado = new bool[N];
@@ -157,6 +166,27 @@ double viajante_rp(int **mat, int N, int *sol_mejor){
 
     Y = new nodo(1, N, sol, usado, 0, calculo_coste_estimado(costes_minimos, N));
 
+	while(cp->getSize() != 0 && cp->elem_minimo().getCoste_estimado() < coste_mejor){
+		Y = &cp->elem_minimo();
+		cp->borra_min();
+		//generamos hijos de Y
+		X = new nodo(Y->getK() + 1, N, Y->getSoluciones(), Y->getUsados(),/*costes*/ 0, /*coste estimado*/1.0);
+		int anterior = X->getSolucion(X->getK() - 1);
+
+		for(int vertice = 2; vertice < N; vertice++){
+			if(!X->getUsados()[vertice] && mat[anterior][vertice] != 0 /*es decir, existe una arista*/){
+				X->modifySolution(X->getK(), vertice);
+				X->modifyUsado(vertice, true);
+				if(X->getK() == N){
+					/*fin del arbol*/
+
+
+				}else{
+					
+				}
+			}
+		}
+	}
 }
 
 int *calculo_minimos(int **mat, int N){
