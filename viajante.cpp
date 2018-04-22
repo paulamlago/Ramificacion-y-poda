@@ -1,6 +1,17 @@
+//solucion al problema del viajante usando tecnicas de ramificacion y poda
+//PAULA MUÑOZ LAGO
+
 #include <iostream>
+#include <cmath>
+#include <fstream>
+#include <string>
 using namespace std;
 
+const string file_name = "grafo.txt";
+int **inicializarMatriz(int &n);
+double viajante_rp(int **mat, int N, int *sol_mejor);
+int *calculo_minimos(int **mat, int N);
+double calculo_coste_estimado(int *costes_minimos, int aristas);
 
 class nodo {
 	int *sol;
@@ -9,7 +20,8 @@ class nodo {
     bool *usado;
     
 public:
-    nodo();
+	nodo(){coste = 0;};
+    nodo(int etapa, int n, int *soluciones, bool *u);
     nodo(int etapa, int n, int *soluciones, bool *u, int coste, int coste_est);
 	int getCoste_estimado() {return coste_estimado; }
 	int getK(){return k;}
@@ -19,22 +31,27 @@ public:
 	int getCoste(){return coste;}
 	void modifySolution(int pos, int x) {sol[pos] =x; }
 	void modifyUsado(int pos, bool x){usado[pos] = x;}
+	void setCoste(int c) {coste = c;}
+	void setCoste_estimado(int c){coste = c;}
 };
 
 nodo::nodo(int etapa, int n, int *soluciones, bool *u, int cost, int coste_est){
     k = etapa;
     sol = new int[n];
     usado = new bool[n];
+    sol = soluciones;
+    usado = u;
+    coste = cost;
+    coste_estimado = coste_est;
+}
+
+nodo::nodo(int etapa, int n, int *soluciones, bool *u){
+ 	k = etapa;
+    sol = new int[n];
+    usado = new bool[n];
 
     sol = soluciones;
     usado = u;
-    /*
-    for(int i = 0; i < soluciones.size(); i++){
-        sol[i] = soluciones[i];
-        usado[i] = u[i];
-    }*/
-    coste = cost;
-    coste_estimado = coste_est;
 }
 
 class Monticulo_Williams_Minimos {
@@ -74,7 +91,7 @@ void Monticulo_Williams_Minimos::insert(nodo element) {
 	//si se puede insertar, es decir, no hemos llegado a la capacidad máxima: insertamos
 	if (size != max_size) {
 		v[size] = element;
-		posiciones[size] = element.getElem();
+		posiciones[size] = element.getCoste_estimado();
 		size++;
 		//si no se trata del primer elemento que insertamos y el padre del elemento es 
 		//mayor que este nuevo elemento habremos violado la condicion de montículo de minimos
@@ -86,7 +103,7 @@ void Monticulo_Williams_Minimos::insert(nodo element) {
 
 void Monticulo_Williams_Minimos::flotar(int i) {
 	if (i != 0) {
-		for (; v[padre(i)].getElem() > v[i].getElem(); i = padre(i)) {
+		for (; v[padre(i)].getCoste_estimado() > v[i].getCoste_estimado(); i = padre(i)) {
 			intercambiar(padre(size - 1), i);
 		}
 	}
@@ -98,10 +115,10 @@ void Monticulo_Williams_Minimos::hundir(int j, int k) {
 
 	while (2 * j <= size && !fin) {
 
-		if (2 * j + 1 <= k && v[2 * j + 1].getElem() < v[2 * j].getElem()) m = 2 * j + 1;
-		if (2 * j + 1 > k || v[2 * j + 1].getElem() >= v[2 * j].getElem()) m = 2 * j;
+		if (2 * j + 1 <= k && v[2 * j + 1].getCoste_estimado() < v[2 * j].getCoste_estimado()) m = 2 * j + 1;
+		if (2 * j + 1 > k || v[2 * j + 1].getCoste_estimado() >= v[2 * j].getCoste_estimado()) m = 2 * j;
 
-		if (v[j].getElem() > v[m].getElem()) { 
+		if (v[j].getCoste_estimado() > v[m].getCoste_estimado()) { 
 			intercambiar(j, m); 
 			j = m; 
 		}
@@ -135,18 +152,19 @@ void Monticulo_Williams_Minimos::borra_min() {
 	}
 }
 
-int main(){
-
-    return 0;
-}
-
-//mat - matriz de adyacencia que representa el grafo
-double viajante_rp(int **mat, int N, int *sol_mejor, double coste_mejor){
+//Grafo representado con una matriz de adyacencia
+double viajante_rp(int **mat, int N, int *sol_mejor){
+	double coste_mejor;
     nodo *X, *Y;
+	//usara una cola de prioridad para ir abriendo los nodos en funcion de su coste estimado,
+	//es decir, los mas prometedores antes.
     Monticulo_Williams_Minimos *cp = new Monticulo_Williams_Minimos(N);
     int *costes_minimos = new int[N];
 	
+	//cota 1:
 	//guardamos en costes_minimos los costes de las aristas de menor a mayor
+	//para que, cuando sepamos el numero de aristas que nos quedan por recorrer, x,
+	//podamos establecer un coste optimista sumando las x primeras
     costes_minimos = calculo_minimos(mat, N);
     
 	//generamos la raiz
@@ -164,29 +182,49 @@ double viajante_rp(int **mat, int N, int *sol_mejor, double coste_mejor){
         }
     }
 
-    Y = new nodo(1, N, sol, usado, 0, calculo_coste_estimado(costes_minimos, N));
+    Y = new nodo(0, N, sol, usado, 0, calculo_coste_estimado(costes_minimos, N));
+	cp->insert(*Y);
+	coste_mejor = INFINITY;
 
-	while(cp->getSize() != 0 && cp->elem_minimo().getCoste_estimado() < coste_mejor){
-		Y = &cp->elem_minimo();
+	while(cp->getSize() > 0 && cp->elem_minimo().getCoste_estimado() < coste_mejor){
+		*Y = cp->elem_minimo();
 		cp->borra_min();
+		cout << "ahora mismo el tamano es: " << cp->getSize() << endl;
 		//generamos hijos de Y
-		X = new nodo(Y->getK() + 1, N, Y->getSoluciones(), Y->getUsados(),/*costes*/ 0, /*coste estimado*/1.0);
-		int anterior = X->getSolucion(X->getK() - 1);
+		X = new nodo(Y->getK() + 1, N, Y->getSoluciones(), Y->getUsados());
+		int anterior = X->getSolucion(X->getK() - 1); //ultimo nodo visitado
 
-		for(int vertice = 2; vertice < N; vertice++){
+		for(int vertice = 1; vertice < N; vertice++){
 			if(!X->getUsados()[vertice] && mat[anterior][vertice] != 0 /*es decir, existe una arista*/){
 				X->modifySolution(X->getK(), vertice);
 				X->modifyUsado(vertice, true);
+				X->setCoste(Y->getCoste() + mat[anterior][vertice]);
+				
 				if(X->getK() == N){
 					/*fin del arbol*/
-
-
-				}else{
 					
+					if(mat[X->getSolucion(N - 1)][1] > 0 && (X->getCoste() + mat[X->getSolucion(N - 1)][1]) < coste_mejor){
+						sol_mejor = X->getSoluciones();
+						coste_mejor = X->getCoste() + mat[X->getSolucion(N - 1)][1];
+					}
+				}else{
+					X->setCoste_estimado(X->getCoste() + calculo_coste_estimado(costes_minimos, N - X->getK()));
+					if(X->getCoste_estimado() < coste_mejor){
+						cp->insert(*X);
+					}
 				}
+				X->modifyUsado(vertice, false);
 			}
 		}
 	}
+
+	cout << "El coste de la mejor solucion es: " << coste_mejor << endl;
+	for(int i = 0; i < N; i++){
+		cout << sol_mejor[i] << " ";
+	}
+	cout << endl << endl;
+
+	return coste_mejor;
 }
 
 int *calculo_minimos(int **mat, int N){
@@ -220,4 +258,51 @@ double calculo_coste_estimado(int *costes_minimos, int aristas){
         acc += costes_minimos[i];
     }
     return acc;
+}
+
+
+int main(){
+	//cargamos el archivo con el grafo
+	int N;
+	int *sol;
+	double coste;
+
+	int **matriz_ady = inicializarMatriz(N);
+	sol = new int[N];
+
+	//llamamos al algoritmo de ramificacion y poda
+	coste = viajante_rp(matriz_ady, N, sol);
+
+	//imprimimos la mejor solucion
+	cout << "El coste de la mejor solucion es: " << coste << endl;
+	for(int i = 0; i < N; i++){
+		cout << sol[i] << " ";
+	}
+	return 0;
+}
+
+int **inicializarMatriz(int &n) {
+	ifstream file;
+	file.open(file_name);
+	int x;
+	file >> x;
+	int **matriz = NULL;
+
+	if (file.is_open()){
+			matriz = new int*[x];
+			for (int j = 0; j < x; j++) {
+				matriz[j] = new int[x];
+				for (int i = 0; i < x; i++) {
+					file >> matriz[j][i];
+				}
+			}
+
+		n = x;
+	}
+	else {
+		cout << "Ha habido un problema con el archivo: " << file_name << endl;
+	}
+	file.close();
+
+	return matriz;
 }
