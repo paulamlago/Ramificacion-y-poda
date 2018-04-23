@@ -5,65 +5,27 @@
 #include <cmath>
 #include <fstream>
 #include <string>
-#include <vector>
 #include <queue>
+#include <vector>
 using namespace std;
 
 const string file_name = "grafo.txt";
 int **inicializarMatriz(int &n);
-double viajante_rp(int **mat, int N, int *sol_mejor);
+double viajante_rp(int **mat, int N, vector<int> sol_mejor);
 int *calculo_minimos(int **mat, int N);
 double calculo_coste_estimado(int *costes_minimos, int aristas);
 
-class nodo {
-	int *sol;
-    int k;
-    double coste, coste_estimado; //ordenamos la cola de prioridad en funcion del coste_estimado
-    bool *usado;
-    
-public:
-    nodo(int etapa, int n, int *soluciones, bool *u);
-    nodo(int etapa, int n, int *soluciones, bool *u, double coste, double coste_est);
-	double getCoste_estimado() {return coste_estimado; }
-	int getK(){return k;}
-	int *getSoluciones(){return sol;}
-	int getSolucion(int i) {return sol[i]; }
-	bool *getUsados(){ return usado;}
-	double getCoste(){return coste;}
-	void modifySolution(int pos, int x) {sol[pos] =x; }
-	void modifyUsado(int pos, bool x){usado[pos] = x;}
-	void setCoste(double c) {coste = c;}
-	void setCoste_estimado(double c){coste = c;}
-	bool operator () (nodo l, nodo r);
-};
-
-bool nodo::operator () (nodo l, nodo r){
-	return l.getCoste_estimado() < r.getCoste_estimado();
-}
-
-nodo::nodo(int etapa, int n, int *soluciones, bool *u, double cost, double coste_est){
-    k = etapa;
-    sol = new int[n];
-    usado = new bool[n];
-    sol = soluciones;
-    usado = u;
-    coste = cost;
-    coste_estimado = coste_est;
-}
-
-nodo::nodo(int etapa, int n, int *soluciones, bool *u){
- 	k = etapa;
-    sol = new int[n];
-    usado = new bool[n];
-
-    sol = soluciones;
-    usado = u;
-}
+typedef struct {
+	vector<int> sol;
+	int k;
+	double coste, coste_estimado; //ordenamos la cola de prioridad en funcion del coste_estimado
+	vector<bool> usado;
+}nodo;
 
 //Grafo representado con una matriz de adyacencia
-double viajante_rp(int **mat, int N, int *sol_mejor){
+double viajante_rp(int **mat, int N, vector<int> sol_mejor){
 	double coste_mejor;
-    nodo *X, *Y;
+    nodo X, Y;
 	//usara una cola de prioridad para ir abriendo los nodos en funcion de su coste estimado,
 	//es decir, los mas prometedores antes.
 	priority_queue<nodo> cp;
@@ -78,56 +40,49 @@ double viajante_rp(int **mat, int N, int *sol_mejor){
     
 	//generamos la raiz
     //necesitamos preparar un array solucion y usado
-    int *sol = new int[N];
-    bool *usado = new bool[N];
-
     for(int i = 0; i < N; i++){
         if(i == 0){
-            sol[i] = 0;
-            usado[i] = true;
+            Y.sol[i] = 0;
+            Y.usado[i] = true;
         }else{
-            sol[i] = -1;
-            usado[i] = false;
+            Y.sol[i] = -1;
+            Y.usado[i] = false;
         }
     }
 
-    Y = new nodo(0, N, sol, usado, 0, calculo_coste_estimado(costes_minimos, N));
-	cp.push(*Y);
+	Y.k = 0; Y.coste = 0; Y.coste_estimado = calculo_coste_estimado(costes_minimos, N);
+	cp.push(Y);
 	coste_mejor = INFINITY;
 
-	nodo aux = cp.top();
-
-	while(!cp.empty() && aux.getCoste_estimado() < coste_mejor){
-		*Y = cp.top();
+	while(!cp.empty() && cp.top().coste_estimado < coste_mejor){
+		Y = cp.top();
 		cp.pop();
 		cout << "ahora mismo el tamano es: " << cp.size() << endl;
 		//generamos hijos de Y
-		X = new nodo(Y->getK() + 1, N, Y->getSoluciones(), Y->getUsados());
-		int anterior = X->getSolucion(X->getK() - 1); //ultimo nodo visitado
+		X.k = Y.k + 1; X.sol = Y.sol; X.usado = Y.usado;
+		int anterior = X.sol[X.k - 1]; //ultimo nodo visitado
 
 		for(int vertice = 1; vertice < N; vertice++){
-			if(!X->getUsados()[vertice] && mat[anterior][vertice] != 0 /*es decir, existe una arista*/){
-				X->modifySolution(X->getK(), vertice);
-				X->modifyUsado(vertice, true);
-				X->setCoste(Y->getCoste() + mat[anterior][vertice]);
+			if(!X.usado[vertice] && mat[anterior][vertice] != 0 /*es decir, existe una arista*/){
+				X.sol[X.k] = vertice;
+				X.usado[vertice] = true;
+				X.coste = Y.coste + mat[anterior][vertice];
 				
-				if(X->getK() == N){
+				if(X.k == N){
 					/*fin del arbol*/
 					
-					if(mat[X->getSolucion(N - 1)][1] > 0 && (X->getCoste() + mat[X->getSolucion(N - 1)][1]) < coste_mejor){
-						sol_mejor = X->getSoluciones();
-						coste_mejor = X->getCoste() + mat[X->getSolucion(N - 1)][1];
+					if(mat[X.sol[N - 1]][1] > 0 && (X.coste + mat[X.sol[N - 1]][1]) < coste_mejor){
+						sol_mejor = X.sol;
+						coste_mejor = X.coste + mat[X.sol[N - 1]][1];
 					}
 				}else{
-					X->setCoste_estimado(X->getCoste() + calculo_coste_estimado(costes_minimos, N - X->getK()));
-					if(X->getCoste_estimado() < coste_mejor){
-						cp.push(*X);
+					X.coste_estimado = (X.coste + calculo_coste_estimado(costes_minimos, N - X.k));
+					if(X.coste_estimado < coste_mejor){
+						cp.push(X);
 					}
 				}
-				X->modifyUsado(vertice, false);
+				X.usado[vertice] = false;
 			}
-
-			aux = cp.top();
 		}
 	}
 
@@ -178,11 +133,11 @@ double calculo_coste_estimado(int *costes_minimos, int aristas){
 int main(){
 	//cargamos el archivo con el grafo
 	int N;
-	int *sol;
+	vector<int> sol;
 	double coste;
 
 	int **matriz_ady = inicializarMatriz(N);
-	sol = new int[N];
+
 
 	//llamamos al algoritmo de ramificacion y poda
 	coste = viajante_rp(matriz_ady, N, sol);
