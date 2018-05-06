@@ -12,7 +12,7 @@ using namespace std;
 const string file_name = "grafo.txt";
 int **inicializarMatriz(int &n);
 double viajante_rp(int **mat, int N, vector<int> &sol_mejor);
-double calculo_coste_estimado(int **mat, int N);
+double calculo_coste_estimado(int **mat, int N, int fila, int columna);
 
 typedef struct {
 	vector<int> sol;
@@ -65,7 +65,7 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 	}
 
 	Y.k = 0; Y.coste = 0;
-	Y.coste_estimado = calculo_coste_estimado(mat_reducida, N);
+	Y.coste_estimado = calculo_coste_estimado(mat_reducida, N, -1, -1);
 	cp.push(Y);
 	coste_mejor = INFINITY;
 
@@ -100,7 +100,7 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 					}
 				}
 				else {
-					X.coste_estimado = (X.coste + calculo_coste_estimado(mat_reducida, N));
+					X.coste_estimado = (X.coste + calculo_coste_estimado(mat_reducida, N, anterior, vertice));
 					if (X.coste_estimado < coste_mejor) {
 						cp.push(X);
 					}
@@ -114,7 +114,7 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 	return coste_mejor;
 }
 
-double calculo_coste_estimado(int **mat, int N) {
+double calculo_coste_estimado(int **mat, int N, int fila, int columna) {
 	double acc = 0;
 	double min;
 	vector<int> minimos_filas (N), minimos_columnas(N);
@@ -123,30 +123,34 @@ double calculo_coste_estimado(int **mat, int N) {
 	for (int i = 0; i < N; i++){
 		min = INFINITY;
 		for (int j = 0; j < N; j++) {
-			if (mat[i][j] < min && mat[i][j] > -1) {
+			if (i != fila && j != columna && mat[i][j] < min && mat[i][j] > -1) {
 				minimos_filas[i] = mat[i][j];
 				min = mat[i][j];
 			}
 		}
-		acc += min;
+		if (min != INFINITY) acc += min;
 	}
+	if (fila != -1) minimos_filas[fila] = 0;
 	//restamos a cada elemento, el minimo de la fila a la que pertenece
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			if (mat[i][j] != -1) mat[i][j] -= minimos_filas[i];
 		}
 	}
+
 	//buscamos el mínimo de cada columna
 	for (int i = 0; i < N; i++) {
 		min = INFINITY;
 		for (int j = 0; j < N; j++) {
-			if (mat[j][i] < min && mat[j][i] > -1) {
+			if (i != fila && j != columna && mat[j][i] < min && mat[j][i] > -1) {
 				minimos_columnas[i] = mat[j][i];
 				min = mat[j][i];
 			}
 		}
-		acc += min;
+		if (min != INFINITY) acc += min;
 	}
+	if (columna != -1) minimos_columnas[columna] = 0;
+
 	//restamos a cada elemento el minimo de la columna a la que pertenece
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
