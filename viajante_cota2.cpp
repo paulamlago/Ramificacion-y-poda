@@ -12,7 +12,6 @@ using namespace std;
 const string file_name = "grafo.txt";
 int **inicializarMatriz(int &n);
 double viajante_rp(int **mat, int N, vector<int> &sol_mejor);
-int *calculo_minimos(int **mat, int N, int &costes_length);
 double calculo_coste_estimado(int **mat, int N);
 
 typedef struct {
@@ -33,19 +32,20 @@ struct comparison_nodes {
 //Grafo representado con una matriz de adyacencia
 double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 	double coste_mejor;
-	int costes_length;
+	int **mat_reducida;
+	mat_reducida = new int*[N];
+	
+	for (int i = 0; i < N; i++) {
+		mat_reducida[i] = new int[N];
+		for (int j = 0; j < N; j++) {
+			mat_reducida[i][j] = mat[i][j];
+		}
+	}
+
 	nodo Y, X;
 	//usara una cola de prioridad para ir abriendo los nodos en funcion de su coste estimado,
 	//es decir, los mas prometedores antes.
 	priority_queue<nodo, vector<nodo>, comparison_nodes> cp = priority_queue<nodo, vector<nodo>, comparison_nodes>();
-
-	int *costes_minimos = new int[N];
-
-	//cota 1:
-	//guardamos en costes_minimos los costes de las aristas de menor a mayor
-	//para que, cuando sepamos el numero de aristas que nos quedan por recorrer, x,
-	//podamos establecer un coste optimista sumando las x primeras
-	costes_minimos = calculo_minimos(mat, N, costes_length);
 
 	//generamos la raiz
 	//necesitamos preparar un array solucion y usado
@@ -65,7 +65,7 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 	}
 
 	Y.k = 0; Y.coste = 0;
-	Y.coste_estimado = calculo_coste_estimado(mat, N);
+	Y.coste_estimado = calculo_coste_estimado(mat_reducida, N);
 	cp.push(Y);
 	coste_mejor = INFINITY;
 
@@ -85,7 +85,7 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 		int anterior = X.sol[X.k - 1]; //ultimo nodo visitado
 
 		for (int vertice = 1; vertice < N; vertice++) {
-			if (!X.usado[vertice] && mat[anterior][vertice] != 0 /*es decir, existe una arista*/) {
+			if (!X.usado[vertice] && mat[anterior][vertice] != -1 /*es decir, existe una arista*/) {
 				X.sol[X.k] = vertice;
 				X.usado[vertice] = true;
 				X.coste = Y.coste + mat[anterior][vertice];
@@ -93,13 +93,14 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 				if (X.k == N - 1) {
 					/*fin del arbol*/
 
-					if (mat[X.sol[N - 1]][0] > 0 && (X.coste + mat[X.sol[N - 1]][0]) < coste_mejor) {
+					if (mat[X.sol[N - 1]][0] > -1 && (X.coste + mat[X.sol[N - 1]][0]) < coste_mejor) {
 						sol_mejor = X.sol;
+
 						coste_mejor = X.coste + mat[X.sol[N - 1]][0];
 					}
 				}
 				else {
-					X.coste_estimado = (X.coste + calculo_coste_estimado(mat, N));
+					X.coste_estimado = (X.coste + calculo_coste_estimado(mat_reducida, N));
 					if (X.coste_estimado < coste_mejor) {
 						cp.push(X);
 					}
@@ -122,8 +123,9 @@ double calculo_coste_estimado(int **mat, int N) {
 	for (int i = 0; i < N; i++){
 		min = INFINITY;
 		for (int j = 0; j < N; j++) {
-			if (mat[i][j] < min) {
+			if (mat[i][j] < min && mat[i][j] > -1) {
 				minimos_filas[i] = mat[i][j];
+				min = mat[i][j];
 			}
 		}
 		acc += min;
@@ -131,15 +133,16 @@ double calculo_coste_estimado(int **mat, int N) {
 	//restamos a cada elemento, el minimo de la fila a la que pertenece
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
-			mat[i][j] -= minimos_filas[i];
+			if (mat[i][j] != -1) mat[i][j] -= minimos_filas[i];
 		}
 	}
 	//buscamos el mínimo de cada columna
 	for (int i = 0; i < N; i++) {
 		min = INFINITY;
 		for (int j = 0; j < N; j++) {
-			if (mat[j][i] < min) {
+			if (mat[j][i] < min && mat[j][i] > -1) {
 				minimos_columnas[i] = mat[j][i];
+				min = mat[j][i];
 			}
 		}
 		acc += min;
@@ -147,7 +150,7 @@ double calculo_coste_estimado(int **mat, int N) {
 	//restamos a cada elemento el minimo de la columna a la que pertenece
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
-			mat[j][i] -= minimos_columnas[i];
+			if (mat[j][i] != -1) mat[j][i] -= minimos_columnas[i];
 		}
 	}
 
@@ -163,12 +166,7 @@ int main() {
 
 	int **matriz_ady = inicializarMatriz(N);
 
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
-			cout << matriz_ady[i][j] << " ";
-		}
-		cout << endl;
-	}
+
 	//llamamos al algoritmo de ramificacion y poda
 
 	coste = viajante_rp(matriz_ady, N, sol_mejor);
