@@ -85,7 +85,7 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 		int anterior = X.sol[X.k - 1]; //ultimo nodo visitado
 
 		for (int vertice = 1; vertice < N; vertice++) {
-			if (!X.usado[vertice] && mat[anterior][vertice] != 0 /*es decir, existe una arista*/) {
+			if (!X.usado[vertice] && mat[anterior][vertice] != -1 /*es decir, existe una arista*/) {
 				X.sol[X.k] = vertice;
 				X.usado[vertice] = true;
 				X.coste = Y.coste + mat[anterior][vertice];
@@ -93,7 +93,7 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 				if (X.k == N - 1) {
 					/*fin del arbol*/
 
-					if (mat[X.sol[N - 1]][0] > 0 && (X.coste + mat[X.sol[N - 1]][0]) < coste_mejor) {
+					if (mat[X.sol[N - 1]][0] > -1 && (X.coste + mat[X.sol[N - 1]][0]) < coste_mejor) {
 						sol_mejor = X.sol;
 						coste_mejor = X.coste + mat[X.sol[N - 1]][0];
 					}
@@ -121,7 +121,7 @@ int *calculo_minimos(int **mat, int N, int &costes_length) {
 
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < i; j++) {
-			if (mat[i][j] != 0) {
+			if (mat[i][j] != -1) {
 				costes[count] = mat[i][j];
 				count++;
 			}
@@ -159,13 +159,6 @@ int main() {
 	double coste;
 
 	int **matriz_ady = inicializarMatriz(N);
-
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
-			cout << matriz_ady[i][j] << " ";
-		}
-		cout << endl;
-	}
 	//llamamos al algoritmo de ramificacion y poda
 
 	coste = viajante_rp(matriz_ady, N, sol_mejor);
