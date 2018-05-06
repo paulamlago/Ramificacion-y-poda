@@ -113,7 +113,6 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 		}
 	}
 
-	//delete[] costes_minimos;
 	return coste_mejor;
 }
 

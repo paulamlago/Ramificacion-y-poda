@@ -113,9 +113,10 @@ vector<int> calculo_minimos(int **mat, int N) {
 	//solo nos interesa una mitad de la matriz
 	vector<int> costes(N);
 	int count = 0;
-	int min = INFINITY;
+	double  min;
 	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < i; j++) {
+		min = INFINITY;
+		for (int j = 0; j < N; j++) {
 			if (mat[i][j] != -1 && mat[i][j] < min) {
 				costes[count] = mat[i][j];
 				min = mat[i][j];
@@ -130,7 +131,7 @@ double calculo_coste_estimado(vector<int> costes_minimos, vector<int> visitados)
 	//nos quedamos con el coste minimo de ir de un nodo de los que faltan por visitar a otro
 	double acc = 0;
 	for (int i = 0; i < visitados.size(); i++) {
-		if(visitados[i] == 0) acc += costes_minimos[i];
+		if(visitados[i] == -1) acc += costes_minimos[i];
 	}
 	return acc;
 }
