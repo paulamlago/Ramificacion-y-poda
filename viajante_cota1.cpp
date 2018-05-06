@@ -12,8 +12,8 @@ using namespace std;
 const string file_name = "grafo.txt";
 int **inicializarMatriz(int &n);
 double viajante_rp(int **mat, int N, vector<int> &sol_mejor);
-int *calculo_minimos(int **mat, int N, int &costes_length);
-double calculo_coste_estimado(int *costes_minimos, int aristas);
+vector<int> calculo_minimos(int **mat, int N);
+double calculo_coste_estimado(vector<int> costes_minimos, vector<int> visitados);
 
 typedef struct {
 	vector<int> sol;
@@ -33,25 +33,20 @@ struct comparison_nodes {
 //Grafo representado con una matriz de adyacencia
 double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 	double coste_mejor;
-	int costes_length;
 	nodo Y, X;
 	//usara una cola de prioridad para ir abriendo los nodos en funcion de su coste estimado,
 	//es decir, los mas prometedores antes.
 	priority_queue<nodo, vector<nodo>, comparison_nodes> cp = priority_queue<nodo, vector<nodo>, comparison_nodes>();
-
-	int *costes_minimos = new int[N];
-
+	
 	//cota 1:
-	//guardamos en costes_minimos los costes de las aristas de menor a mayor
-	//para que, cuando sepamos el numero de aristas que nos quedan por recorrer, x,
-	//podamos establecer un coste optimista sumando las x primeras
-	costes_minimos = calculo_minimos(mat, N, costes_length);
+	//guardamos en el vactor los costes minimos de ir de un nodo a otro desde cada uno de ellos
+	vector<int> costes_minimos(N);
+	costes_minimos = calculo_minimos(mat, N);
 
 	//generamos la raiz
 	//necesitamos preparar un array solucion y usado
 	Y.sol = vector<int>(N);
 	Y.usado = vector<bool>(N);
-
 	for (int i = 0; i < N; i++) {
 		if (i == 0) {
 			Y.sol[i] = 0;
@@ -63,9 +58,8 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 			Y.usado[i] = false;
 		}
 	}
-
 	Y.k = 0; Y.coste = 0;
-	Y.coste_estimado = calculo_coste_estimado(costes_minimos, N);
+	Y.coste_estimado = calculo_coste_estimado(costes_minimos, Y.sol);
 	cp.push(Y);
 	coste_mejor = INFINITY;
 
@@ -102,7 +96,7 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 					}
 				}
 				else {
-					X.coste_estimado = (X.coste + calculo_coste_estimado(costes_minimos, N - X.k));
+					X.coste_estimado = (X.coste + calculo_coste_estimado(costes_minimos, X.sol));
 					if (X.coste_estimado < coste_mejor) {
 						cp.push(X);
 					}
@@ -111,45 +105,32 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 			}
 		}
 	}
-
-	//delete[] costes_minimos;
 	return coste_mejor;
 }
 
-int *calculo_minimos(int **mat, int N, int &costes_length) {
+vector<int> calculo_minimos(int **mat, int N) {
 	//recorremos la matiz cogiendo los costes y ordenandolos
 	//solo nos interesa una mitad de la matriz
-	int *costes = new int[N];
+	vector<int> costes(N);
 	int count = 0;
-
+	int min = INFINITY;
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < i; j++) {
-			if (mat[i][j] != -1) {
+			if (mat[i][j] != -1 && mat[i][j] < min) {
 				costes[count] = mat[i][j];
-				count++;
+				min = mat[i][j];
 			}
 		}
+		count++;
 	}
-
-	int aux;
-	//ahora que tenemos los costes, los ordenamos de menor a mayor
-	for (int i = 0; i < count; i++) {
-		for (int j = i + 1; j < count; j++) {
-			if (costes[i] > costes[j]) {
-				aux = costes[i];
-				costes[i] = costes[j];
-				costes[j] = aux;
-			}
-		}
-	}
-	costes_length = count;
 	return costes;
 }
 
-double calculo_coste_estimado(int *costes_minimos, int aristas) {
+double calculo_coste_estimado(vector<int> costes_minimos, vector<int> visitados) {
+	//nos quedamos con el coste minimo de ir de un nodo de los que faltan por visitar a otro
 	double acc = 0;
-	for (int i = 0; i < aristas; i++) {
-		acc += costes_minimos[i];
+	for (int i = 0; i < visitados.size(); i++) {
+		if(visitados[i] == 0) acc += costes_minimos[i];
 	}
 	return acc;
 }
@@ -172,6 +153,9 @@ int main() {
 		cout << sol_mejor[i] << " ";
 	}
 
+	for (int i = 0; i < N; i++) {
+		delete[] matriz_ady[i];
+	}
 	return 0;
 }
 

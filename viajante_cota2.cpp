@@ -184,6 +184,9 @@ int main() {
 		cout << sol_mejor[i] << " ";
 	}
 
+	for (int i = 0; i < N; i++) {
+		delete[] matriz_ady[i];
+	}
 	return 0;
 }
 
