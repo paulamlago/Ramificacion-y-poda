@@ -76,6 +76,9 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 
 		Y = cp.top();
 		cp.pop();
+
+		cout << "Exploramos nodo: " << Y.sol[Y.k] << endl;
+
 		//generamos hijos de Y
 		X.k = Y.k + 1;
 
