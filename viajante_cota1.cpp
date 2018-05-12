@@ -7,6 +7,7 @@
 #include <string>
 #include <queue>
 #include <vector>
+#include <ctime>
 using namespace std;
 
 const string file_name = "grafo.txt";
@@ -33,6 +34,8 @@ struct comparison_nodes {
 //Grafo representado con una matriz de adyacencia
 double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 	double coste_mejor;
+	unsigned t0, t1, acc = 0;
+	int counter_nodos_explorados = 0;
 	nodo Y, X;
 	//usara una cola de prioridad para ir abriendo los nodos en funcion de su coste estimado,
 	//es decir, los mas prometedores antes.
@@ -66,12 +69,13 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 	while (!cp.empty() && cp.top().coste_estimado < coste_mejor) {
 		X.usado = vector<bool>(N);
 		X.sol = vector<int>(N);
-		
+		t0 = clock();
 
 		Y = cp.top();
 		cp.pop();
 
-		cout << "Exploramos nodo: " << Y.sol[Y.k] << endl;
+		counter_nodos_explorados++;
+		cout << counter_nodos_explorados << "- Exploramos nodo: " << Y.sol[Y.k] << endl;
 
 		//generamos hijos de Y
 		X.k = Y.k + 1;
@@ -104,7 +108,12 @@ double viajante_rp(int **mat, int N, vector<int> &sol_mejor) {
 				X.usado[vertice] = false;
 			}
 		}
+		t1 = clock();
+		acc += (t1 - t0);
 	}
+
+	cout << "En total hemos explorado " << counter_nodos_explorados << " nodos" << endl;
+	cout << "El tiempo medio de exploracion de cada nodo es " << acc / counter_nodos_explorados << endl;
 	return coste_mejor;
 }
 
@@ -142,7 +151,9 @@ int main() {
 	int N;
 	vector<int> sol_mejor;
 	double coste;
+	unsigned t0, t1;
 
+	t0 = clock();
 	int **matriz_ady = inicializarMatriz(N);
 	//llamamos al algoritmo de ramificacion y poda
 
@@ -150,10 +161,12 @@ int main() {
 
 	//imprimimos la mejor solucion
 	cout << "El coste de la mejor solucion tiene coste: " << coste << endl;
-	for (int i = 0; i < N; i++) {
+	for (int i = 0; i < sol_mejor.size(); i++) {
 		cout << sol_mejor[i] << " ";
 	}
 
+	t1 = clock();
+	cout << endl << "El tiempo total de ejecucion es " << (t1 - t0) << endl;
 	for (int i = 0; i < N; i++) {
 		delete[] matriz_ady[i];
 	}
